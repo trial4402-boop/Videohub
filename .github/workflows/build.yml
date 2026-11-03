@@ -1,0 +1,113 @@
+name: Build Real Android APK
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Create and Build Android App
+        run: |
+          mkdir -p app/src/main/java/com/videohub/app
+          
+          # 1. AndroidManifest.xml
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:label="Video Hub"
+                  android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
+                  <activity android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 2. MainActivity.java
+          cat << 'EOF' > app/src/main/java/com/videohub/app/MainActivity.java
+          package com.videohub.app;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.widget.TextView;
+          import android.view.Gravity;
+
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  TextView tv = new TextView(this);
+                  tv.setText("Video Hub APK Successfully Installed!");
+                  tv.setTextSize(22);
+                  tv.setGravity(Gravity.CENTER);
+                  setContentView(tv);
+              }
+          }
+          EOF
+
+          # 3. settings.gradle
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "VideoHub"
+          include ':app'
+          EOF
+
+          # 4. build.gradle (Root)
+          cat << 'EOF' > build.gradle
+          plugins {
+              id 'com.android.application' version '8.2.0' apply false
+          }
+          EOF
+
+          # 5. app/build.gradle
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.videohub.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.videohub.app"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          EOF
+
+          # Build APK directly using pre-installed Gradle & Android SDK
+          gradle assembleDebug
+
+      - name: Upload Real APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoHub-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
